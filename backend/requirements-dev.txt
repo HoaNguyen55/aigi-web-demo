@@ -1,0 +1,4 @@
+# Chỉ cần cho backend/tests/check_all.py (httpx: gọi HTTP; pandas: src.demo --csv của pipeline gốc)
+-r requirements.txt
+httpx==0.28.1
+pandas==3.1.1

@@ -1,0 +1,12 @@
+# Phụ thuộc suy luận (CPU). Cài: pip install -r requirements.txt
+# scikit-learn / scipy KHÔNG cần: src/skfallback.py của pipeline gốc tự thay thế. open_clip KHÔNG cần (4 mô hình không dùng CLIP).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+torchvision==0.29.2+cpu
+timm==1.0.31
+numpy==2.5.4
+pillow==13.0.0
+pyyaml==6.0.3
+fastapi==0.162.5
+uvicorn==0.54.0
+python-multipart==0.0.33
