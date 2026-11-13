@@ -17,7 +17,33 @@ web_demo/
 
 ## Chạy trên máy mới (từng bước)
 
-Đã kiểm chứng trên Linux / WSL2 (Ubuntu, x86_64). Phần Windows ở cuối mục chưa được chạy thử.
+Các bước dưới đây dùng chung cho **Linux thuần và WSL2** (lệnh giống hệt nhau). Đã kiểm chứng trên WSL2 Ubuntu
+24.04, x86_64; chưa chạy trên máy Linux thuần nhưng không có bước nào riêng của WSL. Phần Windows (không qua WSL) ở
+cuối mục chưa được chạy thử.
+
+Khác biệt duy nhất giữa hai môi trường:
+
+| | Linux thuần | WSL2 |
+|---|---|---|
+| Nơi đặt repo | bất kỳ | nên đặt trong thư mục home của WSL (`~/...`), không đặt ở `/mnt/c`, `/mnt/d` vì ổ Windows rất chậm |
+| Mở trang web | trình duyệt trên chính máy đó | trình duyệt trên Windows, cùng địa chỉ `http://127.0.0.1:8000` |
+
+Cài nhanh các công cụ cần có trên Ubuntu/Debian (bỏ qua cái nào đã có):
+
+```bash
+sudo apt update && sudo apt install -y git curl unzip
+curl -LsSf https://astral.sh/uv/install.sh | sh      # uv: tự tải Python 3.12 ở bước 3
+# Node.js 20+: cài theo https://nodejs.org (hoặc nvm); kiểm tra bằng: node --version
+```
+
+Tóm tắt toàn bộ (chi tiết từng bước ở dưới):
+
+```bash
+git clone https://github.com/HoaNguyen55/aigi-web-demo.git && cd aigi-web-demo
+uv venv .venv --python 3.12 && uv pip install -p .venv -r backend/requirements.lock.txt
+(cd frontend && npm install && npm run build)
+cd backend && ../.venv/bin/python app.py              # mở http://127.0.0.1:8000
+```
 
 ### Bước 0. Chuẩn bị
 
