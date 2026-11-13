@@ -172,6 +172,15 @@ Biến môi trường:
 | `HOST` | `127.0.0.1` | địa chỉ bind |
 | `PORT` | `8000` | cổng |
 
+## Ảnh demo (`demo_hinh/`)
+
+- `demo_hinh/that_coco/`: 8 ảnh thật lấy từ COCO val2017 (không thuộc ImageNet/GenImage), giữ nguyên không chỉnh sửa;
+  cả 4 mô hình đều cho Real Image (điểm AI dưới 0,01). Đuôi `cocoNNNNN` trong tên file là mã ảnh gốc. Ảnh COCO có nguồn
+  từ Flickr với nhiều loại giấy phép Creative Commons. Đây là ảnh đã chọn lọc: trên 120 ảnh COCO thử, ViT + HH đoán
+  đúng 99 ảnh và 96 ảnh được cả 4 mô hình đoán đúng.
+- `demo_hinh/ai_genimage/`: 4 ảnh AI mẫu của GenImage (ADM, BigGAN, Midjourney, SD1.4). Không ảnh nào được cả 4 mô hình
+  cùng đoán đúng: HH đúng ở ADM, BigGAN, Midjourney; RGB, NPR, WPT đúng ở SD1.4.
+
 ## Tuỳ chọn trên giao diện
 
 - **Giới hạn cạnh ảnh:** chọn 512 / 1024 / ... tới trần `MAX_SIDE` của máy chủ. Ảnh vượt mức bị chặn ngay trên trình duyệt,
