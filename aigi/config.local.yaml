@@ -1,0 +1,5 @@
+# Bản DEMO di động: đường dẫn tương đối so với thư mục chạy (chay_demo.bat tự cd vào đây)
+paths:
+  data_root: data
+  cache: data/cache
+  runs: runs

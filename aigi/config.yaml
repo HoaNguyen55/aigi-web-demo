@@ -1,0 +1,176 @@
+# ============================================================
+# Cấu hình chung của dự án (xem mục 4 tài liệu hướng dẫn)
+# Mọi script đọc file này; ghi đè từ dòng lệnh bằng --set khoa.con=gia_tri
+# ============================================================
+
+paths:
+  data_root: D:/aigi-data            # Linux/WSL: /data/aigi  | Kaggle: /kaggle/working
+  lists: lists                       # thư mục chứa các file danh sách .csv (tương đối với project)
+  cache: D:/aigi-data/cache          # embedding CLIP, đặc trưng thủ công
+  runs: D:/aigi-data/runs            # checkpoint, log, result.json
+
+# ---------- Dữ liệu gốc (mục 5) ----------
+# Mỗi "nguồn" trỏ tới thư mục chứa ảnh thật / ảnh giả. Sửa đường dẫn cho đúng máy bạn.
+# GenImage: mỗi bộ sinh có thư mục <...>/train/{ai,nature} và <...>/val/{ai,nature}
+genimage:
+  root: D:/aigi-data/raw/genimage
+  generators:                        # tên ngắn: thư mục con (tương đối với root) — KIỂM TRA LẠI tên thư mục sau khi giải nén
+    sd14: stable_diffusion_v_1_4/imagenet_ai_0419_sdv4
+    sd15: stable_diffusion_v_1_5/imagenet_ai_0424_sdv5
+    mj: Midjourney/imagenet_midjourney
+    adm: ADM/imagenet_ai_0508_adm
+    glide: glide/imagenet_glide
+    wukong: wukong/imagenet_ai_0424_wukong
+    vqdm: VQDM/imagenet_ai_0419_vqdm
+    biggan: BigGAN/imagenet_ai_0419_biggan
+  fake_dir: ai
+  real_dir: nature
+  hard4: [adm, glide, vqdm, biggan]  # nhóm bộ sinh KHÔNG dùng VAE kiểu SD (= "unseen" của GenImage)
+  train_generator: sd14              # giao thức chuẩn: chỉ train trên SD1.4
+  val_frac: 0.05                     # tỉ lệ ảnh train tách làm VAL
+  max_train_per_class: null         # giới hạn số ảnh train MỖI LỚP (bản gốc); null = dùng hết ảnh trên ổ. fit75 tự đặt = N_TRAIN
+  max_clean_per_class: null         # như trên cho bản sạch
+
+# ForenSynths ProGAN 4 lớp: <root>/train/<class>/{0_real,1_fake}
+forensynths:
+  root: D:/aigi-data/raw/forensynths
+  classes: [car, cat, chair, horse]
+
+# Benchmark test dạng thư mục chung: mỗi tập con có thư mục real/ và fake/ (hoặc 0_real/1_fake).
+# python -m src.prepare_data tự tải, sắp xếp và ghi đường dẫn đúng vào config.local.yaml.
+test_benchmarks:
+  synthbuster: D:/aigi-data/raw/test/synthbuster      # Zenodo (miễn phí) + ảnh thật RAISE-1k
+  openfake: D:/aigi-data/raw/test/openfake            # Hugging Face ComplexDataLab/OpenFake (bộ sinh 2024-2025)
+  chameleon: D:/aigi-data/raw/test/chameleon          # TUỲ CHỌN: phải xin qua email tác giả AIDE
+  univfd: D:/aigi-data/raw/test/univfd                # giao thức 2 (UnivFD diffusion, 8 tập)
+  aigcdetect: D:/aigi-data/raw/test/aigcdetect        # giao thức 2 (16 tập)
+  evalgen: D:/aigi-data/raw/test/evalgen              # phụ lục (DDA EvalGEN: Flux, ... )
+  forensynths: D:/aigi-data/raw/test/forensynths      # giao thức 2: 11 GAN + WFIR
+core_benchmarks: [synthbuster, openfake, chameleon]   # giao thức 1, bài chính (cái nào chưa có sẽ tự bỏ qua)
+# Giao thức 2 (chuẩn của NPR, FreqNet, SAFE, FatFormer, C2P-CLIP, Effort, AIDE): train ProGAN 4 lớp, test các bộ dưới
+protocol2_benchmarks: [forensynths, univfd, aigcdetect]
+
+# Kho ảnh thật để mô phỏng (mục 6): mỗi nguồn là một thư mục ảnh
+real_pool:                           # chỉ ảnh thật, KHÔNG trùng ảnh test
+  imagenet: D:/aigi-data/raw/genimage/stable_diffusion_v_1_4/imagenet_ai_0419_sdv4/train/nature
+  coco: D:/aigi-data/real_pool/coco/train2017
+
+# ---------- Khử thiên lệch (mục 5.2) ----------
+debias:
+  jpeg_quality: 96                   # nén ảnh giả về JPEG chất lượng này
+  real_min_side: 450                 # Grommelt et al. 2024: giữ ảnh thật có CẢ HAI cạnh trong [450, 550]
+  real_max_side: 550
+  real_jpeg_quality: 96              # và là JPEG chất lượng 96 (null = không lọc theo chất lượng)
+  workers: 8
+
+# ---------- Mô phỏng (mục 6) ----------
+sim:
+  families: [upsample, vae_sd, vae_sdxl, vae_flux]   # thêm vae_sd3 nếu đã có quyền tải
+  n_per_family: 30000
+  crop: 256
+  jpeg_quality: 96
+  vae_repos:
+    vae_sd: [stabilityai/sd-vae-ft-mse, null]
+    vae_sdxl: [madebyollin/sdxl-vae-fp16-fix, null]
+    vae_sd3: [stabilityai/stable-diffusion-3-medium-diffusers, vae]   # cần đăng nhập HF + chấp nhận giấy phép
+    vae_flux: [black-forest-labs/FLUX.1-schnell, vae]
+
+# ---------- Đặc trưng (mục 7) ----------
+features: [rgb, wpt, npr, fft, clip]  # chọn trong: rgb, hh, wpt, npr, fft, clip
+clip:
+  arch: ViT-L-14
+  pretrained: openai
+
+# ---------- Phương pháp chính (thiết kế đã chốt) ----------
+main:
+  trunk: timm:convnext_tiny.fb_in22k # thân chính: ConvNeXt-Tiny pretrained ImageNet-22k
+  pretrained: true
+  mode: b                            # môi trường = 4 họ mô phỏng (trừ họ giữ lại làm VAL) + ảnh SD1.4
+  envs: all
+  vit_trunk: vit                     # dòng kiểm chứng "phương pháp cũng giúp ViT"
+  baseline_trunk: resnet50           # thân của CNNSpot / Aligned train lại (đúng như paper gốc)
+
+# ---------- Tinh chỉnh siêu tham số (src/tune.py) — chỉ dùng VAL ----------
+tune:
+  epochs: 2                          # mỗi cấu hình thử train ngắn, như nhau cho mọi cấu hình
+  train_frac: 0.3                    # dùng 30% dữ liệu train khi thử
+  steps_per_epoch: null
+
+# ---------- Train (mục 8) ----------
+train:
+  train_list: genimage_sd14_train    # tên file trong lists/ (không có .csv) — đã TRỪ phần val
+  # VAL: chỉ lấy từ dữ liệu TRAIN. Thư mục "val" của GenImage là TEST chuẩn, không dùng để chọn gì.
+  val_lists: [genimage_sd14_trainval]  # 5% ảnh train giữ lại (genimage.val_frac)
+  val_holdout_env: vae_flux          # họ mô phỏng KHÔNG train, dùng làm val "bộ sinh lạ" (null = tắt)
+  val_max_per_source: 1000           # số ảnh val tối đa mỗi (nguồn, nhãn) để đánh giá nhanh mỗi epoch
+  select_by: auto                    # auto: holdout nếu có, không thì indomain — chọn epoch tốt nhất theo tiêu chí này
+  test_lists: [genimage_all_val]     # TEST (GenImage val chuẩn): chỉ để báo kết quả, không dùng để chọn
+  mode: b                            # a: chỉ thật + mô phỏng | b: + ảnh sinh của train_list
+  envs: none                         # none | all | danh sách họ mô phỏng, ví dụ [upsample, vae_sd]
+  n_train: full                      # full | số nguyên (1000, 5000, 20000...)
+  trunk: cnn                         # cnn | vit | timm:<tên> | rgb:<tên> | clip_ft | vit_rgb | resnet50 | convnext | dinov2 (xem src/models.py)
+  pretrained: false                  # dùng trọng số học sẵn cho vit / timm / rgb
+  img_size: 224                      # cho rgb:<tên>
+  freeze_backbone: false             # true = linear probe (chỉ train lớp cuối) cho rgb:<tên>
+  clip_ft_blocks: 2                  # clip_ft: số khối cuối được fine-tune (0 = linear probe ~ UnivFD)
+  width: 32
+  crop: 256
+  epochs: 5
+  batch_size: 64
+  lr: 2.0e-4
+  weight_decay: 0.0
+  num_workers: 8
+  amp: true
+  beta: 0.0                          # trọng số phạt V-REx (0 = ERM thường)
+  beta_warmup_epochs: 1              # beta = 0 trong các epoch đầu
+  lam: 0.0                           # phạt thưa cho cổng
+  stage: final                       # select (học cổng) | final (train gọn)
+  keep_from: null                    # tên run 'select' để lấy nhóm giữ lại
+  gate_threshold: 0.5
+  aug_prob: 0.1                      # xác suất JPEG/blur ngẫu nhiên khi train (như AIDE)
+  ema: 0                             # EMA trọng số (0 = tắt; 0.999 = bật): mỗi epoch so VAL của bản EMA và bản thường, giữ bản tốt hơn
+  head_lr_mult: 1                    # lr của stem/head = lr x hệ số này (thân giữ lr gốc); 1 = như cũ
+  gate_lr_mult: 10                   # lr của cổng = lr x hệ số này (chỉ giai đoạn select). Ít epoch (--may-yeu) nên đặt 100
+  steps_per_epoch: null              # null = len(dataset)/batch
+  seed: 0
+  # --- tối ưu (không đổi phương pháp; áp dụng GIỐNG NHAU cho mọi run để so sánh công bằng) ---
+  precision: bf16                    # bf16 (RTX 30xx/40xx trở lên) | fp16 | fp32 ; bf16 tự lùi về fp16 nếu GPU không hỗ trợ
+  channels_last: true
+  compile: false                     # torch.compile: nhanh hơn trên Linux/WSL; Windows native nên để false
+  optim: adamw                       # adamw | adamw8bit (cần bitsandbytes; giảm VRAM optimizer cho mô hình lớn)
+  select_frac: 0.3                   # giai đoạn select chỉ dùng 30% dữ liệu (mọi run select như nhau); final dùng đủ
+  # --- phạt đa môi trường ---
+  penalty: vrex                      # vrex | irm | groupdro (so sánh với các phương pháp tổng quát hoá miền khác)
+  dro_eta: 0.01                      # bước cập nhật trọng số GroupDRO
+  keep_random: false                 # đối chứng chọn ngẫu nhiên cùng số nhóm
+  keep_last: false                   # false: xoá last.pt/best.pt khi run xong (giữ final.pt) -> tiết kiệm hàng chục GB
+
+# ---------- Cache crop (tối ưu tốc độ, KHÔNG mất dữ liệu) ----------
+# Giải nén mỗi ảnh 1 lần, lưu vùng giữa crop_size x crop_size dạng uint8 (không resize, không nén lại).
+# Chỉ dùng khi TRAIN; đánh giá luôn đọc ảnh gốc. Dung lượng ~ N x crop_size^2 x 3 byte (256px: ~0.2 MB/ảnh).
+cache:
+  use: true
+  crop_size: 256
+
+# ---------- Đánh giá (mục 9) ----------
+eval:
+  batch_size: 64
+  crop: 256
+  robust:
+    jpeg: [95, 75, 50, 30]
+    resize: [0.75, 0.5, 0.25]
+    blur: [1, 2, 3]
+    noise: [0.01, 0.03]
+    social: [true]                   # resize cạnh dài 1080 -> JPEG q75
+  bootstrap: 1000
+  max_per_source_robust: 2000        # độ bền: lấy mẫu tối đa N ảnh mỗi nguồn x nhãn (cố định seed) + báo khoảng tin cậy
+  # Bộ sinh dùng autoencoder ĐÃ có trong ngân hàng mô phỏng ("seen") vs KHÔNG có ("unseen").
+  # Kết luận tổng quát hoá phải dựa trên nhóm unseen (tránh rò rỉ mô phỏng -> test). Kiểm tra lại theo paper gốc từng bộ sinh.
+  sim_overlap:
+    # So khớp theo tên tập con (bỏ dấu, chữ thường; khớp đúng hoặc tiền tố).
+    # seen: bộ giải mã giống VAE trong ngân hàng mô phỏng (SD/SDXL/FLUX) HOẶC không rõ (thương mại) -> xếp seen cho chặt.
+    # unseen: chắc chắn KHÔNG dùng VAE kiểu SD -> kết luận "tổng quát hoá" dựa vào nhóm này.
+    seen: [sd, stablediffusion, sdxl, sd3, flux, wukong, ldm, latentdiffusion, mj, midjourney, dalle3, firefly,
+           imagen, ideogram, gptimage, gpt, pixart, playground, kandinsky, hunyuan, recraft, infinity, omnigen, nova, got]
+    unseen: [adm, glide, vqdm, biggan, progan, stylegan, stylegan2, stylegan3, gaugan, cyclegan, stargan, deepfake,
+             whichfaceisreal, dalle2, dalle, guided]

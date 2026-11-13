@@ -1,7 +1,7 @@
 # Web demo local: phát hiện ảnh do AI tạo (4 mô hình ViT đơn đặc trưng)
 
 Tải ảnh lên, chọn 1 trong 4 mô hình (RGB, NPR, HH, WPT), nhận nhãn AI-Generated / Real Image.
-Chỉ chạy local, suy luận CPU. Backend gọi lại nguyên pipeline gốc trong `aigi_final/src` (không viết lại
+Chỉ chạy local, suy luận CPU. Backend gọi lại nguyên pipeline gốc trong `aigi/src` (không viết lại
 tiền xử lý, trích đặc trưng hay kiến trúc).
 
 ```
@@ -15,41 +15,127 @@ web_demo/
   Dockerfile, BAO_CAO.md
 ```
 
-## Cài đặt
+## Chạy trên máy mới (từng bước)
 
-Cần Python 3.12 và thư mục source + checkpoint gốc (mặc định `/mnt/d/xulyanh/extracted/aigi_final`).
-Trên WSL nên đặt venv ngoài `/mnt/d` (ổ Windows rất chậm):
+Đã kiểm chứng trên Linux / WSL2 (Ubuntu, x86_64). Phần Windows ở cuối mục chưa được chạy thử.
 
-```bash
-# Cách 1: uv (cách đã dùng và đã kiểm chứng trên máy này; venv tạo bằng uv KHÔNG có pip)
-uv venv ~/aigi_web_venv --python 3.12
-uv pip install -p ~/aigi_web_venv -r backend/requirements.lock.txt
+### Bước 0. Chuẩn bị
 
-# Cách 2: venv + pip chuẩn (chưa thử trên máy này)
-python3 -m venv ~/aigi_web_venv
-~/aigi_web_venv/bin/pip install -r backend/requirements.lock.txt
-```
+| Cần có | Ghi chú |
+|---|---|
+| Git | để tải repo |
+| Python 3.12 | hoặc cài `uv` (https://docs.astral.sh/uv/), uv tự tải Python 3.12 |
+| Node.js 20 trở lên | chỉ để build giao diện một lần (máy thử dùng Node 24) |
+| Khoảng 2,5 GB ổ đĩa, 2 GB RAM trống, có Internet ở lần cài đầu | không cần GPU |
 
-`requirements.lock.txt` ghim mọi gói (Python 3.12, Linux x86_64) nên cài lại ra đúng môi trường đã thử.
-`requirements.txt` chỉ ghim phụ thuộc trực tiếp; dùng nó khi muốn nâng phiên bản, rồi tạo lại file khoá bằng
-`uv pip freeze` trên một venv sạch.
-
-Frontend (một lần, hoặc mỗi khi sửa giao diện):
+### Bước 1. Tải repo
 
 ```bash
-cd frontend && npm install && npm run build      # tạo frontend/dist
+git clone https://github.com/HoaNguyen55/aigi-web-demo.git
+cd aigi-web-demo
 ```
 
-## Chạy local
+### Bước 2. Source + checkpoint gốc (đã có sẵn trong repo)
+
+Repo đã kèm thư mục `aigi/` (khoảng 334 MB) nên không cần `aigi_final.zip`:
+
+```
+aigi/src/                                 code pipeline gốc (nguyên trạng)
+aigi/config.yaml, aigi/config.local.yaml
+aigi/runs/VIT1_rgb_deb_full_s0/final.pt   ViT + RGB
+aigi/runs/VIT2_npr_deb_full_s0/final.pt   ViT + NPR
+aigi/runs/VIT2_hh_deb_full_s0/final.pt    ViT + HH
+aigi/runs/VIT2_wpt_deb_full_s0/final.pt   ViT + WPT
+aigi/demo_anh/                            8 ảnh mẫu
+```
+
+`git clone` vì vậy tải khoảng 330 MB. Muốn dùng bản source/checkpoint khác thì đặt biến môi trường `AIGI_ROOT`
+trỏ tới thư mục đó khi chạy (bước 5).
+
+### Bước 3. Cài thư viện Python (PyTorch bản CPU)
+
+```bash
+# Cách 1: uv (cách đã kiểm chứng; venv tạo bằng uv KHÔNG có pip)
+uv venv .venv --python 3.12
+uv pip install -p .venv -r backend/requirements.lock.txt
+
+# Cách 2: venv + pip chuẩn (chưa chạy thử)
+python3.12 -m venv .venv
+.venv/bin/pip install -r backend/requirements.lock.txt
+```
+
+Bước này tải khoảng vài trăm MB. Trên WSL, nếu repo nằm ở ổ Windows (`/mnt/c`, `/mnt/d`) thì nên tạo venv ở thư mục
+home (ví dụ `~/aigi_web_venv`) vì ổ Windows rất chậm; khi đó thay `.venv` bằng đường dẫn đó ở các lệnh bên dưới.
+
+### Bước 4. Build giao diện (một lần)
+
+```bash
+cd frontend
+npm install
+npm run build        # tạo frontend/dist
+cd ..
+```
+
+### Bước 5. Chạy server
+
+Từ lần sau chỉ cần bước này: bước 3 và 4 làm một lần (làm lại bước 4 khi giao diện thay đổi, bước 3 khi file requirements thay đổi).
 
 ```bash
 cd backend
-~/aigi_web_venv/bin/python app.py
+../.venv/bin/python app.py
 ```
 
-Mở http://127.0.0.1:8000 . Khởi động + nạp 4 mô hình mất khoảng 17–22 giây trên máy thử; sau đó `GET /api/health` trả
-`{"ok": true, "models_loaded": ["rgb","npr","hh","wpt"]}`. Nếu chưa có `frontend/dist`, API vẫn chạy bình thường
-(chỉ không có trang ở `/`); build xong frontend thì khởi động lại server.
+Chờ khoảng 20 giây cho tới khi thấy dòng `Uvicorn running on http://127.0.0.1:8000`, rồi mở trình duyệt tại
+**http://127.0.0.1:8000**. Dừng server bằng Ctrl+C.
+
+Các biến thể:
+
+```bash
+PORT=8001 ../.venv/bin/python app.py                           # đổi cổng khi 8000 đang bận
+AIGI_ROOT=/duong/dan/aigi_final ../.venv/bin/python app.py     # source gốc nằm ở chỗ khác
+MAX_SIDE=2048 ../.venv/bin/python app.py                       # chặn ảnh có cạnh dài trên 2048 px
+```
+
+### Bước 6. Kiểm tra nhanh
+
+```bash
+curl http://127.0.0.1:8000/api/health
+# {"ok":true,"models_loaded":["rgb","npr","hh","wpt"],"max_side":4096}
+```
+
+Trên trang web: tải một ảnh trong `aigi/demo_anh/`, chọn mô hình, bấm "Analyze Image".
+
+### Lỗi thường gặp
+
+| Hiện tượng | Nguyên nhân và cách xử lý |
+|---|---|
+| `Không thấy pipeline gốc ở ... (thiếu src/evaluate.py)` | Thư mục `aigi/` bị thiếu hoặc `AIGI_ROOT` trỏ sai. Kiểm tra `aigi/src/evaluate.py` tồn tại. |
+| `FileNotFoundError ... final.pt` khi khởi động | Thiếu một trong 4 checkpoint ở `aigi/runs/<run>/final.pt` (clone chưa xong hoặc file bị xoá). |
+| Mở http://127.0.0.1:8000 báo 404 nhưng `/api/health` vẫn chạy | Chưa build giao diện. Làm bước 4 rồi khởi động lại server. |
+| Trang báo "Không tải được danh sách mô hình" | Server đang chạy bản cũ hơn giao diện. Khởi động lại server. |
+| `address already in use` | Cổng 8000 đang bận. Chạy với `PORT=8001`. |
+| Ảnh lớn chạy rất lâu | Suy luận CPU: ảnh 1024 px khoảng 7–10 giây, ảnh điện thoại 1920 × 2560 px khoảng 30 giây mỗi mô hình. |
+
+### Windows (chưa chạy thử)
+
+Các bước giống hệt, chỉ khác lệnh. File khoá `requirements.lock.txt` được tạo trên Linux nên trên Windows dùng `requirements.txt`:
+
+```bat
+uv venv .venv --python 3.12
+uv pip install -p .venv -r backend\requirements.txt
+cd frontend && npm install && npm run build && cd ..
+cd backend
+set PYTHONUTF8=1
+..\.venv\Scripts\python app.py
+```
+
+Nếu gặp lỗi ở bước cài PyTorch hoặc khi chạy, dùng WSL2 và làm theo các bước Linux ở trên.
+
+## Ghi chú cài đặt
+
+`requirements.lock.txt` ghim mọi gói (Python 3.12, Linux x86_64) nên cài lại ra đúng môi trường đã thử.
+`requirements.txt` chỉ ghim phụ thuộc trực tiếp; dùng nó khi muốn nâng phiên bản, rồi tạo lại file khoá bằng
+`uv pip freeze` trên một venv sạch. Nếu chưa có `frontend/dist`, API vẫn chạy bình thường (chỉ không có trang ở `/`).
 
 Biến môi trường:
 
@@ -152,8 +238,8 @@ file. Mất khoảng 5 phút (`--skip-timing` để bỏ phần đo thời gian)
 
 ```bash
 docker build -t aigi-web .
-docker run --rm -p 127.0.0.1:8000:8000 -v /mnt/d/xulyanh/extracted/aigi_final:/aigi:ro aigi-web
+docker run --rm -p 127.0.0.1:8000:8000 -v "$PWD/aigi":/aigi:ro aigi-web
 ```
 
-Image không chứa source/checkpoint gốc; thư mục `aigi_final` được gắn chỉ-đọc vào `/aigi`. Có `HEALTHCHECK` gọi
+Image không chứa source/checkpoint gốc; thư mục `aigi/` của repo được gắn chỉ-đọc vào `/aigi`. Có `HEALTHCHECK` gọi
 `/api/health`. Dockerfile **chưa được build thử** (máy phát triển không có docker).
